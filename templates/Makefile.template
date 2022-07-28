@@ -1,0 +1,56 @@
+LIB = LIBNAME
+C_API_HEADER = HEADERFILE
+CFLAGS = $(shell pkg-config --cflags $(LIB))
+BUILD_DIR = build
+UNAME_S = $(shell uname -s)
+ARCH = $(shell uname -m)
+PLATFORM = linux
+STDLIB_INCLUDE = /usr/include
+ifeq ($(UNAME_S),Darwin)
+	PLATFORM = macos
+	STDLIB_INCLUDE = /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include
+endif
+
+FFMPEG_VERSION=5.0.1_3
+VERSION = $(shell pkg-config --modversion $(LIB))
+JAR_NAME = $(LIB).$(VERSION).$(PLATFORM).$(ARCH)
+JAVA_SOURCES_PATH = $(LIB)/src/main/java
+
+INCLUDE_FLAGS = $(shell pkg-config --cflags $(LIB))
+C_API_INCLUDE_DIR = $(shell brew --cellar)/ffmpeg/$(FFMPEG_VERSION)/include
+
+C_API_FILE = $(C_API_INCLUDE_DIR)/$(LIB)/$(C_API_HEADER)
+
+POM = -f $(LIB)/pom.xml
+MAVEN_FLAGS = $(POM) -DartifactId=$(LIB) -Dversion=$(VERSION) -Dos=$(PLATFORM) -Darch=$(ARCH) -Dclassifiers=$(PLATFORM)
+MMAKE = $(MAKE) --makefile $(LIB)/Makefile
+
+all: clean uninstall-deps install-deps jar
+
+jLIBNAME-src:
+	jextract --source -t $(package) -I $(STDLIB_INCLUDE) $(CFLAGS) --header-class-name c_api --output $(JAVA_SOURCES_PATH) $(args) $(C_API_FILE)
+
+jLIBNAME-dump:
+	$(MMAKE) j$(LIB)-src package=j$(LIB) args='--dump-includes $(LIB)/$(dumpfile)'
+	grep $(C_API_FILE) $(LIB)/$(dumpfile) >> $(LIB)/diff.txt
+
+java-src: clean
+	$(MMAKE) j$(LIB)-dump dumpfile=dump.txt
+	$(MMAKE) j$(LIB)-src package=j$(LIB) args="@$(LIB)/diff.txt"
+
+jar: java-src
+	mvn clean package $(MAVEN_FLAGS)
+
+deploy: jar
+	mvn $(POM) deploy:deploy-file \
+		  -DgroupId=clang.ffmpeg \
+		  -DartifactId=j$(LIB) \
+		  -Dpackaging=jar \
+		  -Dfile=target/j$(LIB).$(VERSION)-$(PLATFORM).jar \
+		  -DrepositoryId=github \
+		  -Durl=https://maven.pkg.github.com/c-to-java-api/jffmpeg \
+		  -Dversion=$(VERSION)-$(PLATFORM)
+
+clean:
+	rm -fr $(LIB)/*.txt
+	mvn clean $(MAVEN_FLAGS)

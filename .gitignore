@@ -1,0 +1,6 @@
+*build/
+target/
+pom-*.xml
+*.jar
+*.txt
+lib*
