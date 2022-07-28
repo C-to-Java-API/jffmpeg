@@ -3,9 +3,6 @@ name: build and test
 on:
   pull_request:
     branches: [ main ]
-    paths:
-      - pom.xml
-      - Makefile
 
 jobs:
   build-and-test:
