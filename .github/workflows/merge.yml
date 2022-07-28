@@ -3,9 +3,6 @@ name: build and release
 on:
   push:
     branches: [ main ]
-    paths:
-      - templates/*.template
-      - Makefile
 
 jobs:
   deploy-jars:

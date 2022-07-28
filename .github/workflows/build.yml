@@ -3,9 +3,6 @@ name: build and test
 on:
   pull_request:
     branches: [ main ]
-    paths:
-      - pom.xml
-      - Makefile
 
 jobs:
   build-and-test:
@@ -20,12 +17,27 @@ jobs:
             TARGET: linux
 
     steps:
-      - name: 'Download JDK 19+jextract'
-        id: download_jdk_19
+      - name: 'Download jextract'
+        id: jextract
         uses: oracle-actions/setup-java@v1.1.1
         with:
-          install: true
+          install: false
           uri: https://download.java.net/java/early_access/jextract/2/openjdk-19-jextract+2-3_${{ matrix.TARGET }}-x64_bin.tar.gz
+
+      - name: 'Extract jextract'
+        shell: sh
+        run: |
+          mkdir -p /tmp/jextract
+          tar --strip-components=1 -xvf ${{ steps.jextract.outputs.archive }} -C /tmp/jextract
+          ls -lah /tmp/jextract
+
+      - name: 'Download JDK 19'
+        id: jdk_19
+        uses: oracle-actions/setup-java@v1.1.1
+        with:
+          website: jdk.java.net
+          release: 19
+          install: true
 
       - name: 'Check out repository'
         uses: actions/checkout@v3
@@ -44,6 +56,8 @@ jobs:
       - name: make jar
         shell: bash
         run: |
+          export PATH=${PATH}:/tmp/jextract/bin
+
           make jar name=avcodec
           make jar name=avdevice
           make jar name=avfilter
